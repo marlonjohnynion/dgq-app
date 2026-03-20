@@ -142,29 +142,16 @@ export default function RemittanceCalculator() {
   const canRecord = Boolean(txDate && txTime && cashier && txFrom && txTo);
 
   const handlePrintReport = () => {
-    const r = (n: number) =>
-      `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    const line = (l: string, v: string) =>
-      `<tr><td>${l}</td><td class="r">${v}</td></tr>`;
-
-    const denomRows = DENOMS.filter((d) => (counts[d] || 0) > 0)
-      .map((d) => line(`${d >= 1000 ? `${d / 1000}K` : d} × ${counts[d]}`, r(d * counts[d])))
-      .join("");
-
-    const coinRow = coins > 0 ? line("Coins", r(coins)) : "";
-
-    const entryRows = (entries: Entry[]) =>
-      entries
-        .filter((e) => e.amount > 0)
-        .map((e) => line(e.description || "—", r(e.amount)))
-        .join("");
-
-    const varianceLabel = variance === 0 ? "BALANCED" : variance > 0 ? "OVERAGE" : "SHORTAGE";
-
-    // epson TM-U220D: 76mm paper, ~63.5mm printable, dot matrix impact
-    // ~33 normal chars or ~40 condensed chars per line
+    // epson TM-U220D: 76mm paper, 16 cpi, 33 columns normal mode
+    // 9-pin dot matrix — use plain ASCII, avoid complex unicode
     const W = 33;
+
+    // use P instead of ₱ — the unicode peso sign smears on 9-pin dot matrix
+    const r = (n: number) => {
+      const formatted = n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `P${formatted}`;
+    };
+
     const pad = (l: string, v: string) => {
       const gap = W - l.length - v.length;
       return l + (gap > 0 ? " ".repeat(gap) : " ") + v;
@@ -253,6 +240,7 @@ export default function RemittanceCalculator() {
     add(dblSep);
 
     // variance
+    const varianceLabel = variance === 0 ? "BALANCED" : variance > 0 ? "OVERAGE" : "SHORTAGE";
     add(center(varianceLabel), center(r(Math.abs(variance))));
     add(dblSep);
 
@@ -260,22 +248,44 @@ export default function RemittanceCalculator() {
     const now2 = new Date();
     add(center(now2.toLocaleDateString("en-PH")));
     add(center(now2.toLocaleTimeString("en-PH")));
-    add("");
+    add("", "");
 
     const receipt = lines.join("\n");
 
+    // 16 cpi = 1.5875mm per char
+    // 33 cols × 1.5875mm = 52.39mm content width
+    // char height from spec: 3.1mm
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <style>
-  @page { margin: 0; size: 76mm auto; }
+  @page {
+    size: 76mm auto;
+    margin: 4mm 0 4mm 0;
+  }
   * { margin: 0; padding: 0; }
-  body { margin: 2mm; }
+  body {
+    width: 76mm;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
   pre {
-    font-family: 'Courier New', 'Courier', monospace;
-    font-size: 10px;
-    line-height: 1.4;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12pt;
+    line-height: 1.5;
     white-space: pre;
+    overflow: hidden;
     color: #000;
+    margin: 0 auto;
+    width: 33ch;
+  }
+  @media screen {
+    body { padding: 20px; }
+    pre {
+      border: 1px dashed #ccc;
+      padding: 16px;
+      background: #fafafa;
+    }
   }
 </style>
 </head><body>
