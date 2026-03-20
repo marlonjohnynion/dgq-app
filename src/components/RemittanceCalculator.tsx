@@ -87,6 +87,10 @@ export default function RemittanceCalculator() {
     set((p) => [...p, { description: "", amount: 0 }]);
   }, []);
 
+  const removeRow = useCallback((set: React.Dispatch<React.SetStateAction<Entry[]>>, i: number) => {
+    set((p) => p.filter((_, idx) => idx !== i));
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const buildFileName = () => {
@@ -139,7 +143,38 @@ export default function RemittanceCalculator() {
     e.target.value = "";
   };
 
-  const canRecord = Boolean(txDate && txTime && cashier && txFrom && txTo && sales && openingFund);
+  const fundsFilled = sales > 0 && openingFund > 0;
+  const entriesValid = [...cashOut, ...gcash, ...bank].every(
+    (e) => (e.description && e.amount > 0) || (!e.description && !e.amount)
+  );
+  const missingItems: string[] = [];
+  if (!txDate) missingItems.push("Date");
+  if (!txTime) missingItems.push("Time");
+  if (!cashier) missingItems.push("Cashier");
+  if (!txFrom) missingItems.push("From");
+  if (!txTo) missingItems.push("To");
+  if (!(openingFund > 0)) missingItems.push("Opening Fund");
+  if (!(sales > 0)) missingItems.push("Sales");
+  const ordinal = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  const incompleteRows = (entries: Entry[]) =>
+    entries.reduce<{ row: number; missing: string }[]>((acc, e, i) => {
+      if (e.description && !e.amount) acc.push({ row: i + 1, missing: "amount" });
+      else if (!e.description && e.amount > 0) acc.push({ row: i + 1, missing: "description" });
+      return acc;
+    }, []);
+  const pushIncomplete = (label: string, entries: Entry[]) => {
+    for (const { row, missing } of incompleteRows(entries)) {
+      missingItems.push(`${label} — ${ordinal(row)} row has no ${missing}`);
+    }
+  };
+  pushIncomplete("Cash-Out", cashOut);
+  pushIncomplete("GCash", gcash);
+  pushIncomplete("Bank Transfer", bank);
+  const canRecord = missingItems.length === 0;
 
   const handlePrintReport = () => {
     // epson TM-U220D: 76mm paper, 16 cpi, 33 cols native
@@ -355,13 +390,13 @@ export default function RemittanceCalculator() {
           <Panel title="Sales & Opening" accent>
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-text-2 mb-1.5 font-medium">
+                <label className="block text-[11px] text-text-2 font-medium mb-1.5">
                   Opening Fund <span className="text-accent">*</span>
                 </label>
                 <MoneyInput value={openingFund} onChange={(v) => setOpeningFund(parseFloat(v) || 0)} />
               </div>
               <div>
-                <label className="block text-[11px] text-text-2 mb-1.5 font-medium">
+                <label className="block text-[11px] text-text-2 font-medium mb-1.5">
                   Sales <span className="text-accent">*</span>
                 </label>
                 <MoneyInput value={sales} onChange={(v) => setSales(parseFloat(v) || 0)} />
@@ -427,13 +462,14 @@ export default function RemittanceCalculator() {
 
           {/* entries */}
           <div className="p-3">
-            <div className="grid grid-cols-[1fr_110px] gap-x-2 text-[10px] font-semibold text-text-3 uppercase tracking-wider mb-1 px-0.5">
+            <div className="grid grid-cols-[1fr_110px_24px] gap-x-2 text-[10px] font-semibold text-text-3 uppercase tracking-wider mb-1 px-0.5">
               <span>Description</span>
               <span className="text-right">Amount</span>
+              <span></span>
             </div>
             <div className="divide-y divide-surface-3/60">
               {cur.entries.map((entry, i) => (
-                <div key={i} className="grid grid-cols-[1fr_110px] gap-2 py-[5px]">
+                <div key={i} className="grid grid-cols-[1fr_110px_24px] gap-2 py-[5px] items-center">
                   <input
                     type="text"
                     value={entry.description}
@@ -442,6 +478,12 @@ export default function RemittanceCalculator() {
                     placeholder="..."
                   />
                   <PcsInput value={entry.amount} onChange={(v) => cur.updater(i, "amount", v)} step="0.01" />
+                  <button
+                    onClick={() => removeRow(cur.setter, i)}
+                    className="w-6 h-6 flex items-center justify-center rounded text-text-3 hover:text-negative hover:bg-negative/10 transition-colors cursor-pointer text-[14px] leading-none"
+                  >
+                    &times;
+                  </button>
                 </div>
               ))}
             </div>
@@ -545,7 +587,12 @@ export default function RemittanceCalculator() {
             </button>
             <button
               onClick={handlePrintReport}
-              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              disabled={!canRecord}
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+                canRecord
+                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 cursor-pointer"
+                  : "bg-surface-3 text-text-3 cursor-not-allowed"
+              }`}
             >
               Print Report
             </button>
@@ -561,6 +608,19 @@ export default function RemittanceCalculator() {
               Record
             </button>
           </div>
+          {!canRecord && (
+            <div className="hidden lg:block mt-2 px-1 no-print">
+              <p className="text-[10px] font-semibold text-negative/70 mb-1">Missing:</p>
+              <ul className="space-y-0.5">
+                {missingItems.map((item) => (
+                  <li key={item} className="flex items-start gap-1.5 text-[10px] text-text-3">
+                    <span className="text-negative/50 leading-[1.4]">&#x2717;</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -591,7 +651,13 @@ export default function RemittanceCalculator() {
           <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 cursor-pointer">
             Load
           </button>
-          <button onClick={handlePrintReport} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 cursor-pointer">
+          <button
+            onClick={handlePrintReport}
+            disabled={!canRecord}
+            className={`px-3 py-2.5 rounded-md text-[11px] font-bold ${
+              canRecord ? "bg-surface-2 border border-surface-3 text-text-2 cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
+            }`}
+          >
             Report
           </button>
           <button
