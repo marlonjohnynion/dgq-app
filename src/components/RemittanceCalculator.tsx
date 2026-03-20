@@ -176,7 +176,8 @@ export default function RemittanceCalculator() {
   pushIncomplete("Bank Transfer", bank);
   const canRecord = missingItems.length === 0;
 
-  const handlePrintReport = () => {
+  // builds the plain-text receipt lines used by both print and image export
+  const buildReceipt = () => {
     // epson TM-U220D: 76mm paper, 16 cpi, 33 cols native
     // browser print adds its own margins, so use 25 cols to
     // stay safely inside the printable area on both sides
@@ -202,7 +203,7 @@ export default function RemittanceCalculator() {
     const lines: string[] = [];
     const add = (...s: string[]) => lines.push(...s);
 
-    add(center("BORACAY GROCER"), center("Remittance Report"), dblSep);
+    add(center("DGQ MINIMART"), center("Remittance Report"), dblSep);
 
     // metadata
     add(pad("Date:", txDate));
@@ -217,8 +218,8 @@ export default function RemittanceCalculator() {
     add(pad("  Total", r(openingFund)));
     add(sep);
 
-    // closing fund
-    add("CLOSING FUND");
+    // cash payments (closing fund)
+    add("CASH PAYMENTS");
     DENOMS.forEach((d) => {
       if ((counts[d] || 0) > 0) {
         const label = `  ${d >= 1000 ? `${d / 1000}K` : d} x ${counts[d]}`;
@@ -229,62 +230,59 @@ export default function RemittanceCalculator() {
     add(pad("  TOTAL", r(closingTotal)));
     add(sep);
 
-    // cash-out / gcash / bank sections
-    const printEntries = (title: string, entries: Entry[], total: number) => {
-      if (total <= 0) return;
-      add(title);
+    // renders individual entry lines with description + amount
+    const addEntryLines = (entries: Entry[], indent = "  ") => {
       entries.forEach((e) => {
         if (e.amount > 0) {
           const desc = e.description || "--";
           const amt = r(e.amount);
-          const inlined = `  ${desc}`;
+          const inlined = `${indent}${desc}`;
           // if it fits on one line, keep it inline
           if (inlined.length + amt.length + 1 <= W) {
             add(pad(inlined, amt));
           } else {
             // description on its own line(s), amount right-aligned below
-            const maxDesc = W - 2;
+            const maxDesc = W - indent.length;
             for (let ci = 0; ci < desc.length; ci += maxDesc) {
-              add(`  ${desc.substring(ci, ci + maxDesc)}`);
+              add(`${indent}${desc.substring(ci, ci + maxDesc)}`);
             }
             add(" ".repeat(W - amt.length) + amt);
           }
         }
       });
-      add(pad("  TOTAL", r(total)));
-      add(sep);
     };
 
-    printEntries("CASH-OUT", cashOut, cashOutTotal);
-
+    // online payments — segmented by gcash and bank transfer
     const paymentsTotal = gcashTotal + bankTotal;
     if (paymentsTotal > 0) {
-      add("PAYMENTS");
-      [...gcash, ...bank].forEach((e) => {
-        if (e.amount > 0) {
-          const desc = e.description || "--";
-          const amt = r(e.amount);
-          const inlined = `  ${desc}`;
-          if (inlined.length + amt.length + 1 <= W) {
-            add(pad(inlined, amt));
-          } else {
-            const maxDesc = W - 2;
-            for (let ci = 0; ci < desc.length; ci += maxDesc) {
-              add(`  ${desc.substring(ci, ci + maxDesc)}`);
-            }
-            add(" ".repeat(W - amt.length) + amt);
-          }
-        }
-      });
+      add("ONLINE PAYMENTS");
+      if (gcashTotal > 0) {
+        add("  GCash");
+        addEntryLines(gcash, "    ");
+        add(pad("    Subtotal", r(gcashTotal)));
+      }
+      if (bankTotal > 0) {
+        add("  Bank Transfer");
+        addEntryLines(bank, "    ");
+        add(pad("    Subtotal", r(bankTotal)));
+      }
       add(pad("  TOTAL", r(paymentsTotal)));
+      add(sep);
+    }
+
+    // cash-out
+    if (cashOutTotal > 0) {
+      add("CASH-OUT");
+      addEntryLines(cashOut);
+      add(pad("  TOTAL", r(cashOutTotal)));
       add(sep);
     }
 
     // accounted for
     add("ACCOUNTED FOR");
-    add(pad("  Closing Fund", r(closingTotal)));
+    add(pad("  Cash Payments", r(closingTotal)));
+    add(pad("  Online Payments", r(paymentsTotal)));
     add(pad("  Cash-Out", r(cashOutTotal)));
-    add(pad("  Payments", r(paymentsTotal)));
     add(pad("  TOTAL", r(accountedFor)));
     add(sep);
 
@@ -305,6 +303,12 @@ export default function RemittanceCalculator() {
     add(center(now2.toLocaleDateString("en-PH")));
     add(center(now2.toLocaleTimeString("en-PH")));
     add("", "");
+
+    return lines;
+  };
+
+  const handlePrintReport = () => {
+    const lines = buildReceipt();
 
     // indent every line by 2 chars so the left edge
     // doesn't get clipped by the printer's margin
@@ -357,6 +361,63 @@ export default function RemittanceCalculator() {
     }
   };
 
+  // renders receipt lines to a PNG blob
+  const buildReceiptBlob = async (): Promise<Blob> => {
+    const lines = buildReceipt();
+
+    const fontSize = 20;
+    const lineHeight = fontSize * 1.25;
+    const fontFamily = "'Courier New', Courier, monospace";
+    const paddingX = 32;
+    const paddingY = 24;
+
+    // measure the widest line to size the canvas
+    const measureCanvas = document.createElement("canvas");
+    const measureCtx = measureCanvas.getContext("2d")!;
+    measureCtx.font = `${fontSize}px ${fontFamily}`;
+    let maxWidth = 0;
+    for (const line of lines) {
+      const w = measureCtx.measureText(line).width;
+      if (w > maxWidth) maxWidth = w;
+    }
+
+    const canvasWidth = Math.ceil(maxWidth + paddingX * 2);
+    const canvasHeight = Math.ceil(lines.length * lineHeight + paddingY * 2);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext("2d")!;
+
+    // white background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // draw text
+    ctx.fillStyle = "#000000";
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textBaseline = "top";
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], paddingX, paddingY + i * lineHeight);
+    }
+
+    return new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), "image/png")
+    );
+  };
+
+  const handleCopyImage = async () => {
+    const blob = await buildReceiptBlob();
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ]);
+    } catch {
+      // clipboard write can fail in some browsers / contexts
+    }
+  };
+
+
   const tabData: Record<Tab, { label: string; short: string; entries: Entry[]; updater: typeof updCashOut; total: number; setter: React.Dispatch<React.SetStateAction<Entry[]>> }> = {
     cashout: { label: "Cash-Out", short: "Cash", entries: cashOut, updater: updCashOut, total: cashOutTotal, setter: setCashOut },
     gcash: { label: "GCash", short: "GCash", entries: gcash, updater: updGcash, total: gcashTotal, setter: setGcash },
@@ -373,7 +434,7 @@ export default function RemittanceCalculator() {
             <span className="text-base font-extrabold text-[11px] tracking-tighter leading-none">DGQ</span>
           </div>
           <div>
-            <h1 className="text-[15px] font-bold text-text-0 tracking-wide leading-none">BORACAY GROCER</h1>
+            <h1 className="text-[15px] font-bold text-text-0 tracking-wide leading-none">DGQ MINIMART</h1>
             <p className="text-[11px] text-text-2 mt-0.5 font-medium">Remittance Calculator</p>
           </div>
         </div>
@@ -617,6 +678,17 @@ export default function RemittanceCalculator() {
               Print Report
             </button>
             <button
+              onClick={handleCopyImage}
+              disabled={!canRecord}
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+                canRecord
+                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 cursor-pointer"
+                  : "bg-surface-3 text-text-3 cursor-not-allowed"
+              }`}
+            >
+              Copy Image
+            </button>
+            <button
               onClick={handleSave}
               disabled={!canRecord}
               className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
@@ -668,17 +740,14 @@ export default function RemittanceCalculator() {
           <button onClick={reset} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 cursor-pointer">
             Reset
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 cursor-pointer">
-            Load
-          </button>
           <button
-            onClick={handlePrintReport}
+            onClick={handleCopyImage}
             disabled={!canRecord}
             className={`px-3 py-2.5 rounded-md text-[11px] font-bold ${
               canRecord ? "bg-surface-2 border border-surface-3 text-text-2 cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
             }`}
           >
-            Report
+            Copy
           </button>
           <button
             onClick={handleSave}
