@@ -142,9 +142,10 @@ export default function RemittanceCalculator() {
   const canRecord = Boolean(txDate && txTime && cashier && txFrom && txTo);
 
   const handlePrintReport = () => {
-    // epson TM-U220D: 76mm paper, 16 cpi, 33 columns normal mode
-    // 9-pin dot matrix — use plain ASCII, avoid complex unicode
-    const W = 33;
+    // epson TM-U220D: 76mm paper, 16 cpi, 33 cols native
+    // browser print adds its own margins, so use 28 cols to
+    // stay safely inside the printable area on both sides
+    const W = 28;
 
     // use P instead of ₱ — the unicode peso sign smears on 9-pin dot matrix
     const r = (n: number) => {
@@ -250,41 +251,42 @@ export default function RemittanceCalculator() {
     add(center(now2.toLocaleTimeString("en-PH")));
     add("", "");
 
-    const receipt = lines.join("\n");
+    // indent every line by 1 char so the left edge
+    // doesn't get clipped by the printer's margin
+    const receipt = lines.map((l) => ` ${l}`).join("\n");
 
-    // 16 cpi = 1.5875mm per char
-    // 33 cols × 1.5875mm = 52.39mm content width
-    // char height from spec: 3.1mm
+    // 28 cols × ~2mm/char = ~56mm fits within 76mm paper
+    // after browser + driver margins on both sides
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <style>
   @page {
     size: 76mm auto;
-    margin: 4mm 0 4mm 0;
+    margin: 0;
   }
   * { margin: 0; padding: 0; }
   body {
-    width: 76mm;
     margin: 0;
     padding: 0;
     background: #fff;
   }
   pre {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 12pt;
-    line-height: 1.5;
+    font-size: 11pt;
+    line-height: 1.1;
     white-space: pre;
-    overflow: hidden;
+    overflow: visible;
     color: #000;
-    margin: 0 auto;
-    width: 33ch;
+    padding: 2mm;
   }
   @media screen {
-    body { padding: 20px; }
+    body { padding: 24px; background: #eee; }
     pre {
-      border: 1px dashed #ccc;
-      padding: 16px;
-      background: #fafafa;
+      max-width: 400px;
+      margin: 0 auto;
+      border: 1px dashed #999;
+      padding: 20px;
+      background: #fff;
     }
   }
 </style>
