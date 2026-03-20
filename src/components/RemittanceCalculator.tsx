@@ -256,15 +256,35 @@ export default function RemittanceCalculator() {
     };
 
     printEntries("CASH-OUT", cashOut, cashOutTotal);
-    printEntries("GCASH", gcash, gcashTotal);
-    printEntries("BANK TRANSFER", bank, bankTotal);
+
+    const paymentsTotal = gcashTotal + bankTotal;
+    if (paymentsTotal > 0) {
+      add("PAYMENTS");
+      [...gcash, ...bank].forEach((e) => {
+        if (e.amount > 0) {
+          const desc = e.description || "--";
+          const amt = r(e.amount);
+          const inlined = `  ${desc}`;
+          if (inlined.length + amt.length + 1 <= W) {
+            add(pad(inlined, amt));
+          } else {
+            const maxDesc = W - 2;
+            for (let ci = 0; ci < desc.length; ci += maxDesc) {
+              add(`  ${desc.substring(ci, ci + maxDesc)}`);
+            }
+            add(" ".repeat(W - amt.length) + amt);
+          }
+        }
+      });
+      add(pad("  TOTAL", r(paymentsTotal)));
+      add(sep);
+    }
 
     // accounted for
     add("ACCOUNTED FOR");
     add(pad("  Closing Fund", r(closingTotal)));
     add(pad("  Cash-Out", r(cashOutTotal)));
-    add(pad("  GCash", r(gcashTotal)));
-    add(pad("  Bank Transfer", r(bankTotal)));
+    add(pad("  Payments", r(paymentsTotal)));
     add(pad("  TOTAL", r(accountedFor)));
     add(sep);
 
@@ -286,9 +306,9 @@ export default function RemittanceCalculator() {
     add(center(now2.toLocaleTimeString("en-PH")));
     add("", "");
 
-    // indent every line by 1 char so the left edge
+    // indent every line by 2 chars so the left edge
     // doesn't get clipped by the printer's margin
-    const receipt = lines.map((l) => ` ${l}`).join("\n");
+    const receipt = lines.map((l) => `  ${l}`).join("\n");
 
     // 28 cols × ~2mm/char = ~56mm fits within 76mm paper
     // after browser + driver margins on both sides
