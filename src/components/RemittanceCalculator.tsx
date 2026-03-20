@@ -139,7 +139,7 @@ export default function RemittanceCalculator() {
     e.target.value = "";
   };
 
-  const canRecord = Boolean(txDate && txTime && cashier && txFrom && txTo);
+  const canRecord = Boolean(txDate && txTime && cashier && txFrom && txTo && sales && openingFund);
 
   const handlePrintReport = () => {
     // epson TM-U220D: 76mm paper, 16 cpi, 33 cols native
@@ -352,9 +352,21 @@ export default function RemittanceCalculator() {
 
         {/* ── col 1: funds ── */}
         <div className="space-y-3">
-          <Panel title="Opening Fund" accent>
-            <label className="block text-[11px] text-text-2 mb-1.5 font-medium">Total amount</label>
-            <MoneyInput value={openingFund} onChange={(v) => setOpeningFund(parseFloat(v) || 0)} />
+          <Panel title="Sales & Opening" accent>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] text-text-2 mb-1.5 font-medium">
+                  Opening Fund <span className="text-accent">*</span>
+                </label>
+                <MoneyInput value={openingFund} onChange={(v) => setOpeningFund(parseFloat(v) || 0)} />
+              </div>
+              <div>
+                <label className="block text-[11px] text-text-2 mb-1.5 font-medium">
+                  Sales <span className="text-accent">*</span>
+                </label>
+                <MoneyInput value={sales} onChange={(v) => setSales(parseFloat(v) || 0)} />
+              </div>
+            </div>
           </Panel>
 
           <Panel title="Closing Fund">
@@ -487,12 +499,7 @@ export default function RemittanceCalculator() {
               <div>
                 <p className="text-[10px] font-bold text-text-3 uppercase tracking-[0.1em] mb-2">Accountability</p>
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[12px] font-medium text-text-1">Sales</span>
-                    <div className="w-[120px]">
-                      <SalesInput value={sales} onChange={(v) => setSales(parseFloat(v) || 0)} />
-                    </div>
-                  </div>
+                  <Row label="Sales" value={sales} />
                   <Row label="Opening Fund" value={openingFund} />
                   <div className="border-t border-surface-3 pt-1.5 mt-1.5">
                     <Row label="Total" value={accountability} bold />
@@ -523,29 +530,29 @@ export default function RemittanceCalculator() {
           </Panel>
 
           {/* actions (desktop) */}
-          <div className="hidden lg:flex gap-2 no-print">
+          <div className="hidden lg:grid grid-cols-2 gap-2 no-print">
             <button
               onClick={reset}
-              className="flex-1 py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
             >
               Reset
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1 py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
             >
               Load
             </button>
             <button
               onClick={handlePrintReport}
-              className="flex-1 py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
             >
-              Generate Report
+              Print Report
             </button>
             <button
               onClick={handleSave}
               disabled={!canRecord}
-              className={`flex-1 py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
                 canRecord
                   ? "bg-accent text-white hover:bg-accent-hover cursor-pointer"
                   : "bg-surface-3 text-text-3 cursor-not-allowed"
