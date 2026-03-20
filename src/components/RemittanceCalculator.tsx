@@ -370,7 +370,7 @@ export default function RemittanceCalculator() {
       <header className="mb-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center shrink-0">
-            <span className="text-white font-extrabold text-[11px] tracking-tighter leading-none">DGQ</span>
+            <span className="text-base font-extrabold text-[11px] tracking-tighter leading-none">DGQ</span>
           </div>
           <div>
             <h1 className="text-[15px] font-bold text-text-0 tracking-wide leading-none">BORACAY GROCER</h1>
@@ -387,7 +387,7 @@ export default function RemittanceCalculator() {
             <select
               value={cashier}
               onChange={(e) => setCashier(e.target.value)}
-              className={`w-full bg-surface-1 border border-surface-3 rounded pl-2.5 pr-7 py-[7px] text-[12px] focus:outline-none focus:border-accent/40 transition-colors focus-ring shadow-sm cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2378716c%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat ${
+              className={`w-full bg-surface-1 border border-surface-3 rounded pl-2.5 pr-7 py-[7px] text-[12px] focus:outline-none focus:border-accent/40 transition-colors focus-ring shadow-sm cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%238c8680%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat ${
                 cashier ? "text-text-0" : "text-text-3"
               }`}
             >
@@ -621,7 +621,7 @@ export default function RemittanceCalculator() {
               disabled={!canRecord}
               className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
                 canRecord
-                  ? "bg-accent text-white hover:bg-accent-hover cursor-pointer"
+                  ? "bg-accent text-base hover:bg-accent-hover cursor-pointer"
                   : "bg-surface-3 text-text-3 cursor-not-allowed"
               }`}
             >
@@ -684,7 +684,7 @@ export default function RemittanceCalculator() {
             onClick={handleSave}
             disabled={!canRecord}
             className={`px-4 py-2.5 rounded-md text-[11px] font-bold ${
-              canRecord ? "bg-accent text-white cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
+              canRecord ? "bg-accent text-base cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
             }`}
           >
             Record
