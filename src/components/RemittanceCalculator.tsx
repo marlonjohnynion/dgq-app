@@ -178,9 +178,9 @@ export default function RemittanceCalculator() {
 
   const handlePrintReport = () => {
     // epson TM-U220D: 76mm paper, 16 cpi, 33 cols native
-    // browser print adds its own margins, so use 28 cols to
+    // browser print adds its own margins, so use 25 cols to
     // stay safely inside the printable area on both sides
-    const W = 28;
+    const W = 25;
 
     // use P instead of ₱ — the unicode peso sign smears on 9-pin dot matrix
     const r = (n: number) => {
