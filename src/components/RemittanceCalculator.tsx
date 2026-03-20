@@ -407,13 +407,22 @@ export default function RemittanceCalculator() {
   };
 
   const handleCopyImage = async () => {
-    const blob = await buildReceiptBlob();
+    // safari requires the blob promise to be passed synchronously
+    // within the user gesture — awaiting first kills the gesture context
     try {
       await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
+        new ClipboardItem({ "image/png": buildReceiptBlob() }),
       ]);
     } catch {
-      // clipboard write can fail in some browsers / contexts
+      // fallback: await then retry (works on Chrome/Firefox)
+      try {
+        const blob = await buildReceiptBlob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+      } catch {
+        // clipboard write unavailable
+      }
     }
   };
 
@@ -656,22 +665,22 @@ export default function RemittanceCalculator() {
           <div className="hidden lg:grid grid-cols-2 gap-2 no-print">
             <button
               onClick={reset}
-              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 active:scale-95 transition-all cursor-pointer focus-ring"
             >
               Reset
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 transition-colors cursor-pointer focus-ring"
+              className="py-2.5 rounded-md text-[12px] font-bold tracking-wide bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 active:scale-95 transition-all cursor-pointer focus-ring"
             >
               Load
             </button>
             <button
               onClick={handlePrintReport}
               disabled={!canRecord}
-              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-all focus-ring ${
                 canRecord
-                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 cursor-pointer"
+                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 active:scale-95 cursor-pointer"
                   : "bg-surface-3 text-text-3 cursor-not-allowed"
               }`}
             >
@@ -680,9 +689,9 @@ export default function RemittanceCalculator() {
             <button
               onClick={handleCopyImage}
               disabled={!canRecord}
-              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-all focus-ring ${
                 canRecord
-                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 cursor-pointer"
+                  ? "bg-surface-1 border border-surface-3 text-text-2 hover:text-text-1 hover:border-surface-4 active:scale-95 cursor-pointer"
                   : "bg-surface-3 text-text-3 cursor-not-allowed"
               }`}
             >
@@ -691,9 +700,9 @@ export default function RemittanceCalculator() {
             <button
               onClick={handleSave}
               disabled={!canRecord}
-              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-colors focus-ring ${
+              className={`py-2.5 rounded-md text-[12px] font-bold tracking-wide transition-all focus-ring ${
                 canRecord
-                  ? "bg-accent text-base hover:bg-accent-hover cursor-pointer"
+                  ? "bg-accent text-base hover:bg-accent-hover active:scale-95 cursor-pointer"
                   : "bg-surface-3 text-text-3 cursor-not-allowed"
               }`}
             >
@@ -737,14 +746,14 @@ export default function RemittanceCalculator() {
               {fmt(Math.abs(variance))}
             </p>
           </div>
-          <button onClick={reset} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 cursor-pointer">
+          <button onClick={reset} className="px-3 py-2.5 rounded-md text-[11px] font-bold bg-surface-2 border border-surface-3 text-text-2 active:scale-95 transition-transform cursor-pointer">
             Reset
           </button>
           <button
             onClick={handleCopyImage}
             disabled={!canRecord}
-            className={`px-3 py-2.5 rounded-md text-[11px] font-bold ${
-              canRecord ? "bg-surface-2 border border-surface-3 text-text-2 cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
+            className={`px-3 py-2.5 rounded-md text-[11px] font-bold transition-transform ${
+              canRecord ? "bg-surface-2 border border-surface-3 text-text-2 active:scale-95 cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
             }`}
           >
             Copy
@@ -752,8 +761,8 @@ export default function RemittanceCalculator() {
           <button
             onClick={handleSave}
             disabled={!canRecord}
-            className={`px-4 py-2.5 rounded-md text-[11px] font-bold ${
-              canRecord ? "bg-accent text-base cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
+            className={`px-4 py-2.5 rounded-md text-[11px] font-bold transition-transform ${
+              canRecord ? "bg-accent text-base active:scale-95 cursor-pointer" : "bg-surface-3 text-text-3 cursor-not-allowed"
             }`}
           >
             Record
